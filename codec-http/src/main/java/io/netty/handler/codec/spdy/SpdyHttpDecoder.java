@@ -32,9 +32,10 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.spdy.SpdyHttpHeaders.Names;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.collection.IntObjectHashMap;
+import io.netty.util.collection.IntObjectMap;
 import io.netty.util.internal.ObjectUtil;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,7 +51,7 @@ public class SpdyHttpDecoder extends MessageToMessageDecoder<SpdyFrame> {
     private final boolean validateHeaders;
     private final int spdyVersion;
     private final int maxContentLength;
-    private final Map<Integer, FullHttpMessage> messageMap;
+    private final IntObjectMap<FullHttpMessage> messageMap;
 
     /**
      * Creates a new instance.
@@ -61,7 +62,7 @@ public class SpdyHttpDecoder extends MessageToMessageDecoder<SpdyFrame> {
      *        a {@link TooLongFrameException} will be raised.
      */
     public SpdyHttpDecoder(SpdyVersion version, int maxContentLength) {
-        this(version, maxContentLength, new HashMap<Integer, FullHttpMessage>(), true);
+        this(version, maxContentLength, new IntObjectHashMap<FullHttpMessage>(), true);
     }
 
     /**
@@ -74,7 +75,7 @@ public class SpdyHttpDecoder extends MessageToMessageDecoder<SpdyFrame> {
      * @param validateHeaders {@code true} if http headers should be validated
      */
     public SpdyHttpDecoder(SpdyVersion version, int maxContentLength, boolean validateHeaders) {
-        this(version, maxContentLength, new HashMap<Integer, FullHttpMessage>(), validateHeaders);
+        this(version, maxContentLength, new IntObjectHashMap<FullHttpMessage>(), validateHeaders);
     }
 
     /**
@@ -104,8 +105,18 @@ public class SpdyHttpDecoder extends MessageToMessageDecoder<SpdyFrame> {
             FullHttpMessage> messageMap, boolean validateHeaders) {
         spdyVersion = ObjectUtil.checkNotNull(version, "version").getVersion();
         this.maxContentLength = checkPositive(maxContentLength, "maxContentLength");
-        this.messageMap = messageMap;
+        this.messageMap = newMessageMap(ObjectUtil.checkNotNull(messageMap, "messageMap"));
         this.validateHeaders = validateHeaders;
+    }
+
+    private static IntObjectMap<FullHttpMessage> newMessageMap(Map<Integer,
+            FullHttpMessage> messageMap) {
+        if (messageMap instanceof IntObjectMap) {
+            return (IntObjectMap<FullHttpMessage>) messageMap;
+        }
+        IntObjectHashMap<FullHttpMessage> newMessageMap = new IntObjectHashMap<FullHttpMessage>(messageMap.size());
+        newMessageMap.putAll(messageMap);
+        return newMessageMap;
     }
 
     @Override
